@@ -6,41 +6,76 @@ const app = express();
 
 app.use(bodyParser.json());
 
-const port = 3000;
+const port = 3001;
+const localIp = '192.168.19.226';
 
-// GET all audit_history records
-app.get('/listAuditHistory', (req, res) => {
-    let sql = 'SELECT * FROM audit_history';
+// GET all master_audits records
+app.get('/listAudits', (req, res) => {
+    let sql = 'SELECT * FROM master_audits';
     db.query(sql, (err, results) => {
         if (err) {
-            res.status(500).json({"status": 500, error: err.message });
+            res.status(500).json({ "status": 500, error: err.message });
         } else {
-            res.status(200).json({"status": 200, error: null, result: results });
+            res.status(200).json({ "status": 200, error: null, result: results });
         }
     });
 });
 
-// POST a new audit_history record
-app.post('/addAuditHistory', (req, res) => {
+// POST a new audit record
+app.post('/addAudit', (req, res) => {
     let newRecord = {
-        audit_id: req.body.audit_id,
-        tool_id: req.body.tool_id,
-        tool_present: req.body.tool_present,
-        kondisi: req.body.kondisi,
-        photo_path: req.body.photo_path,
+        IdTool: req.body.IdTool,
         audit_date: req.body.audit_date,
-        created_by: req.body.created_by
+        photo_path: req.body.photo_path,
+        kondisi: req.body.kondisi,
+        description: req.body.description,
+        created_by: req.body.created_by,
+        created_at: new Date(),
+        updated_at: new Date()
     };
-    let sql = 'INSERT INTO audit_history SET ?';
+    let sql = 'INSERT INTO master_audits SET ?';
     db.query(sql, newRecord, (err, result) => {
         if (err) {
-            res.send(JSON.stringify({ "status": 500, "message": "Database insert error", "error": err }));
-            return;
+            res.status(500).json({ "status": 500, "message": "Database insert error", "error": err });
+        } else {
+            res.status(200).json({ "status": 200, "message": "Record added", "data": { id: result.insertId, ...newRecord } });
         }
-        res.send(JSON.stringify({ "status": 200, "message": "Record added", "data": { id: result.insertId, ...newRecord } }));
     });
 });
 
-app.listen(port, () => {
-    console.log(`Server running on port ${port}`);
+// GET all master_tools records
+app.get('/listTools', (req, res) => {
+    let sql = 'SELECT * FROM master_tools';
+    db.query(sql, (err, results) => {
+        if (err) {
+            res.status(500).json({ "status": 500, error: err.message });
+        } else {
+            res.status(200).json({ "status": 200, error: null, result: results });
+        }
+    });
+});
+
+// POST a new tool record
+app.post('/addTool', (req, res) => {
+    let newRecord = {
+        tool_name: req.body.tool_name,
+        tool_detail: req.body.tool_detail,
+        status: req.body.status,
+        created_by: req.body.created_by,
+        created_at: new Date(),
+        updated_at: new Date()
+    };
+    let sql = 'INSERT INTO master_tools SET ?';
+    db.query(sql, newRecord, (err, result) => {
+        if (err) {
+            res.status(500).json({ "status": 500, "message": "Database insert error", "error": err });
+        } else {
+            res.status(200).json({ "status": 200, "message": "Record added", "data": { id: result.insertId, ...newRecord } });
+        }
+    });
+});
+
+// Start the server
+app.listen(port, localIp, () => {
+    console.log(`Server running at http://${localIp}:${port}/`);
 });
