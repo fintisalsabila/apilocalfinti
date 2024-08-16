@@ -7,7 +7,7 @@ const app = express();
 app.use(bodyParser.json());
 
 const port = 3001;
-const localIp = '192.168.19.226';
+const localIp = '192.168.18.108';
 
 // GET all master_audits records
 app.get('/listAudits', (req, res) => {
