@@ -7,19 +7,28 @@ const app = express();
 app.use(bodyParser.json());
 
 const port = 3001;
-const localIp = '192.168.18.108';
+const localIp = '192.168.18.58';
 
-// GET all master_audits records
+
 app.get('/listAudits', (req, res) => {
-    let sql = 'SELECT * FROM master_audits';
+    let sql = `
+      SELECT * FROM audits
+      WHERE (IdTool, audit_date) IN (
+        SELECT IdTool, MAX(audit_date) AS max_audit_date
+        FROM audits
+        GROUP BY IdTool
+      )
+      ORDER BY audit_date DESC
+    `;
     db.query(sql, (err, results) => {
-        if (err) {
-            res.status(500).json({ "status": 500, error: err.message });
-        } else {
-            res.status(200).json({ "status": 200, error: null, result: results });
-        }
+      if (err) {
+        res.status(500).json({ "status": 500, error: err.message });
+      } else {
+        res.status(200).json({ "status": 200, error: null, result: results });
+      }
     });
-});
+  });
+
 
 // POST a new audit record
 app.post('/addAudit', (req, res) => {
@@ -33,7 +42,7 @@ app.post('/addAudit', (req, res) => {
         created_at: new Date(),
         updated_at: new Date()
     };
-    let sql = 'INSERT INTO master_audits SET ?';
+    let sql = 'INSERT INTO audits SET ?';
     db.query(sql, newRecord, (err, result) => {
         if (err) {
             res.status(500).json({ "status": 500, "message": "Database insert error", "error": err });
