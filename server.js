@@ -9,7 +9,8 @@ app.use(bodyParser.json());
 const port = 3001;
 const localIp = '192.168.18.58';
 
-
+/// API UNTUK AUDIT TOOLS
+// GET all audits records
 app.get('/listAudits', (req, res) => {
     let sql = `
       SELECT * FROM audits
@@ -83,6 +84,41 @@ app.post('/addTool', (req, res) => {
         }
     });
 });
+
+
+//////////////////// NodeJs for the Pemesanan Tools ////////////////////////
+// GET all catalog tools
+app.get('/listCatalogTools', (req, res) => {
+    let sql = 'SELECT * FROM catalog_tools';
+    db.query(sql, (err, results) => {
+        if (err) {
+            res.status(500).json({ "status": 500, error: err.message });
+        } else {
+            res.status(200).json({ "status": 200, error: null, result: results });
+        }
+    });
+});
+
+// POST a new tool order
+app.post('/addToolOrder', (req, res) => {
+    let newOrder = {
+        IdTool: req.body.IdTool,
+        order_quantity: req.body.order_quantity,
+        total_order: req.body.total_order,
+        total_price: req.body.total_price,
+        created_at: new Date(),
+        updated_at: new Date()
+    };
+    let sql = 'INSERT INTO tool_orders SET ?';
+    db.query(sql, newOrder, (err, result) => {
+        if (err) {
+            res.status(500).json({ "status": 500, "message": "Database insert error", "error": err });
+        } else {
+            res.status(200).json({ "status": 200, "message": "Order added", "data": { id: result.insertId, ...newOrder } });
+        }
+    });
+});
+////////////////////////////////////////////////////////////////////////
 
 // Start the server
 app.listen(port, localIp, () => {
