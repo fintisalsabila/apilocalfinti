@@ -7,19 +7,19 @@ const app = express();
 app.use(bodyParser.json());
 
 const port = 3001;
-const localIp = '192.168.18.58';
+const localIp = '192.168.18.127';
 
 /// API UNTUK AUDIT TOOLS
 // GET all audits records
 app.get('/listAudits', (req, res) => {
     let sql = `
       SELECT * FROM audits
-      WHERE (IdTool, audit_date) IN (
-        SELECT IdTool, MAX(audit_date) AS max_audit_date
+      WHERE (IdTool, auditDate) IN (
+        SELECT IdTool, MAX(auditDate) AS max_audit_date
         FROM audits
         GROUP BY IdTool
       )
-      ORDER BY audit_date DESC
+      ORDER BY auditDate DESC
     `;
     db.query(sql, (err, results) => {
       if (err) {
@@ -35,13 +35,13 @@ app.get('/listAudits', (req, res) => {
 app.post('/addAudit', (req, res) => {
     let newRecord = {
         IdTool: req.body.IdTool,
-        audit_date: req.body.audit_date,
-        photo_path: req.body.photo_path,
+        auditDate: req.body.auditDate,
+        photoPath: req.body.photoPath,
         kondisi: req.body.kondisi,
         description: req.body.description,
-        created_by: req.body.created_by,
-        created_at: new Date(),
-        updated_at: new Date()
+        createdBy: req.body.createdBy,
+        createdAt: new Date(),
+        updatedAt: new Date()
     };
     let sql = 'INSERT INTO audits SET ?';
     db.query(sql, newRecord, (err, result) => {
@@ -68,12 +68,12 @@ app.get('/listTools', (req, res) => {
 // POST a new tool record
 app.post('/addTool', (req, res) => {
     let newRecord = {
-        tool_name: req.body.tool_name,
-        tool_detail: req.body.tool_detail,
+        toolName: req.body.toolName,
+        toolDetail: req.body.toolDetail,
         status: req.body.status,
-        created_by: req.body.created_by,
-        created_at: new Date(),
-        updated_at: new Date()
+        createdBy: req.body.createdBy,
+        createdAt: new Date(),
+        updatedAt: new Date()
     };
     let sql = 'INSERT INTO master_tools SET ?';
     db.query(sql, newRecord, (err, result) => {
@@ -101,23 +101,47 @@ app.get('/listCatalogTools', (req, res) => {
 
 // POST a new tool order
 app.post('/addToolOrder', (req, res) => {
-    let newOrder = {
-        IdTool: req.body.IdTool,
-        order_quantity: req.body.order_quantity,
-        total_order: req.body.total_order,
-        total_price: req.body.total_price,
-        created_at: new Date(),
-        updated_at: new Date()
-    };
-    let sql = 'INSERT INTO tool_orders SET ?';
-    db.query(sql, newOrder, (err, result) => {
-        if (err) {
-            res.status(500).json({ "status": 500, "message": "Database insert error", "error": err });
-        } else {
-            res.status(200).json({ "status": 200, "message": "Order added", "data": { id: result.insertId, ...newOrder } });
+    const toolOrders = req.body;
+
+    if (!Array.isArray(toolOrders)) {
+        return res.status(400).json({ status: 400, message: 'Invalid input, expected an array' });
+    }
+
+    const insertOrders = toolOrders.map(order => {
+        return {
+            IdTransaction: order.IdTransaction,
+            IdOrderTool: order.IdOrderTool,
+            orderQuantity: order.orderQuantity,
+            totalOrder: order.totalOrder,
+            totalPrice: order.totalPrice,
+            createdAt: order.createdAt,
+            updatedAt: order.updatedAt
+        };
+    });
+
+    const query = 'INSERT INTO tool_orders (IdTransaction, IdOrderTool, orderQuantity, totalOrder, totalPrice, createdAt, updatedAt) VALUES ?';
+    
+    // Insert all orders in a batch
+    const values = insertOrders.map(order => [order.IdTransaction, order.IdOrderTool, order.orderQuantity, order.totalOrder, order.totalPrice, order.createdAt, order.updatedAt]);
+
+    db.query(query, [values], (error, results) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ status: 500, message: 'Database error' });
         }
+
+        // Assuming you want to return the results or some specific info
+        res.json({
+            status: 200,
+            message: 'Orders added successfully',
+            result: {
+                insertedOrderCount: results.affectedRows
+            }
+        });
     });
 });
+
+
 ////////////////////////////////////////////////////////////////////////
 
 // Start the server

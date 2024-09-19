@@ -4,8 +4,8 @@ const db = mysql.createConnection({
     host: 'localhost',
     user: 'root',
     password: '',
-    // database: 'trainingapps'
-    // database: 'training_ahass'
+    // database: 'trainingapps' (isi percobaan project modul training)
+    // database: 'training_ahass' (isi percobaan project modul training + audit tools)
     database: 'flp_ahass'
 });
 
