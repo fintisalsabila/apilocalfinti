@@ -7,7 +7,7 @@ const app = express();
 app.use(bodyParser.json());
 
 const port = 3001;
-const localIp = '192.168.18.127';
+const localIp = '192.168.18.28';
 
 /// API UNTUK AUDIT TOOLS
 // GET all audits records
@@ -86,7 +86,7 @@ app.post('/addTool', (req, res) => {
 });
 
 
-//////////////////// NodeJs for the Pemesanan Tools ////////////////////////
+//////////////////// NodeJs untuk project "Pemesanan Tools" ////////////////////////
 // GET all catalog tools
 app.get('/listCatalogTools', (req, res) => {
     let sql = 'SELECT * FROM catalog_tools';
@@ -99,7 +99,7 @@ app.get('/listCatalogTools', (req, res) => {
     });
 });
 
-// POST a new tool order
+// POST a new tool order and decrease stock
 app.post('/addToolOrder', (req, res) => {
     const toolOrders = req.body;
 
@@ -121,22 +121,59 @@ app.post('/addToolOrder', (req, res) => {
 
     const query = 'INSERT INTO tool_orders (IdTransaction, IdOrderTool, orderQuantity, totalOrder, totalPrice, createdAt, updatedAt) VALUES ?';
     
-    // Insert all orders in a batch
     const values = insertOrders.map(order => [order.IdTransaction, order.IdOrderTool, order.orderQuantity, order.totalOrder, order.totalPrice, order.createdAt, order.updatedAt]);
 
-    db.query(query, [values], (error, results) => {
-        if (error) {
-            console.error(error);
-            return res.status(500).json({ status: 500, message: 'Database error' });
+    // Perform the database transaction
+    db.beginTransaction((err) => {
+        if (err) {
+            return res.status(500).json({ status: 500, message: 'Transaction error' });
         }
 
-        // Assuming you want to return the results or some specific info
-        res.json({
-            status: 200,
-            message: 'Orders added successfully',
-            result: {
-                insertedOrderCount: results.affectedRows
+        // Insert orders
+        db.query(query, [values], (error, results) => {
+            if (error) {
+                return db.rollback(() => {
+                    res.status(500).json({ status: 500, message: 'Database error' });
+                });
             }
+
+            // Update stock after inserting orders
+            const updateStockPromises = toolOrders.map(order => {
+                return new Promise((resolve, reject) => {
+                    const updateStockQuery = `UPDATE catalog_tools SET stock = stock - ? WHERE IdOrderTool = ? AND stock >= ?`;
+
+                    db.query(updateStockQuery, [order.orderQuantity, order.IdOrderTool, order.orderQuantity], (error, results) => {
+                        if (error || results.affectedRows === 0) {
+                            return reject(new Error('Failed to update stock or insufficient stock'));
+                        }
+                        resolve();
+                    });
+                });
+            });
+
+            Promise.all(updateStockPromises)
+                .then(() => {
+                    db.commit((err) => {
+                        if (err) {
+                            return db.rollback(() => {
+                                res.status(500).json({ status: 500, message: 'Commit error' });
+                            });
+                        }
+
+                        res.json({
+                            status: 200,
+                            message: 'Orders added and stock updated successfully',
+                            result: {
+                                insertedOrderCount: results.affectedRows
+                            }
+                        });
+                    });
+                })
+                .catch(error => {
+                    db.rollback(() => {
+                        res.status(500).json({ status: 500, message: error.message });
+                    });
+                });
         });
     });
 });
